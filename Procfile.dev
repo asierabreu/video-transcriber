@@ -1,0 +1,2 @@
+api: uvicorn --factory transcriber.api.main:create_app_from_env --host 127.0.0.1 --port 8000 --reload --reload-dir src
+worker: python -m transcriber.worker.main

@@ -1,0 +1,98 @@
+# CPU:  docker compose --profile cpu up -d --build            (make up-cpu)
+# GPU:  docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile gpu up -d --build
+#                                                             (make up-gpu)
+# Models (one-time, needs internet): docker compose --profile tools run --rm models  (make models)
+name: transcriber
+
+x-app: &app
+  env_file: .env
+  restart: unless-stopped
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+
+x-worker: &worker
+  <<: *app
+  command: ["transcriber-worker"]
+  volumes:
+    - data:/data
+    - models:/models:ro
+  depends_on:
+    - ollama
+  # Lets the worker finish its current stage; an interrupted job resumes from its last stage.
+  stop_grace_period: 60s
+
+services:
+  api:
+    <<: *app
+    image: transcriber:cpu
+    build:
+      context: .
+      target: runtime-cpu
+    command: ["transcriber-api"]
+    ports:
+      - "${API_PUBLISH:-8000}:8000"
+    volumes:
+      - data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  worker-cpu:
+    <<: *worker
+    profiles: ["cpu"]
+    image: transcriber:cpu
+    build:
+      context: .
+      target: runtime-cpu
+
+  worker-gpu:
+    <<: *worker
+    profiles: ["gpu"]
+    image: transcriber:gpu
+    build:
+      context: .
+      target: runtime-gpu
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  ollama:
+    image: ollama/ollama:${OLLAMA_TAG:-0.12.6}
+    restart: unless-stopped
+    # No published port: only the worker and the model downloader talk to Ollama.
+    volumes:
+      - ollama:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: "5m"
+
+  # One-off model downloader; the only service that needs internet access.
+  models:
+    profiles: ["tools"]
+    image: transcriber:cpu
+    build:
+      context: .
+      target: runtime-cpu
+    env_file: .env
+    environment:
+      HF_HUB_OFFLINE: "0"
+    # Arguments after `run --rm models` are appended, e.g. `--tier cuda-medium`.
+    entrypoint: ["python", "/app/scripts/download_models.py"]
+    volumes:
+      - models:/models
+    depends_on:
+      - ollama
+
+volumes:
+  data: {}
+  models: {}
+  ollama: {}

@@ -1,0 +1,10 @@
+# GPU override: gives Ollama the GPU too. Use together with `--profile gpu`.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
