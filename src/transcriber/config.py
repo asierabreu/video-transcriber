@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     ollama_url: str = "http://ollama:11434"
     llm_model: str | None = None
     llm_num_ctx: int | None = Field(default=None, ge=2048)
+    llm_map_concurrency: int = Field(default=2, ge=1, le=4)
     llm_timeout_s: float = Field(default=300, gt=0)
     llm_max_edit_ratio: float = Field(default=0.25, ge=0, le=1)
     llm_keep_alive: str = "5m"

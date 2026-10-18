@@ -182,7 +182,7 @@ Each step is logged at WARNING with the reason and recorded in the job's `warnin
 
 ### 5.4 Overrides
 
-Every tier default can be overridden: `DEVICE`, `ASR_MODEL`, `ASR_COMPUTE_TYPE`, `ASR_BATCH_SIZE`, `DIARIZATION_DEVICE`, `LLM_MODEL`, `LLM_NUM_CTX` (§9). An override always takes precedence over the tier, and the effective settings are written into each job's `meta.json` for reproducibility.
+Every tier default can be overridden: `DEVICE`, `ASR_MODEL`, `ASR_COMPUTE_TYPE`, `ASR_BATCH_SIZE`, `DIARIZATION_DEVICE`, `LLM_MODEL`, `LLM_NUM_CTX`, and `LLM_MAP_CONCURRENCY` (§9). An override always takes precedence over the tier, and the effective settings are written into each job's `meta.json` for reproducibility.
 
 ---
 
@@ -420,6 +420,7 @@ All settings come from environment variables (read by pydantic-settings, `.env` 
 | `OLLAMA_URL` | `http://ollama:11434` | Ollama base URL. |
 | `LLM_MODEL` | tier default (`qwen3:8b`) | Any Ollama model tag, e.g. `llama3.1:8b`. |
 | `LLM_NUM_CTX` | tier default | Context window requested from Ollama. |
+| `LLM_MAP_CONCURRENCY` | `2` | Maximum concurrent independent summary map requests (1–4). |
 | `LLM_TIMEOUT_S` | `300` | Per-request timeout. |
 | `LLM_MAX_EDIT_RATIO` | `0.25` | Cleanup guard threshold. |
 | `LLM_KEEP_ALIVE` | `5m` | Ollama model residency after use. |

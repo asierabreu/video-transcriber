@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from collections.abc import Callable
 from typing import Any
 
@@ -37,24 +38,35 @@ def summarize_utterances(
     utterances: list[dict[str, Any]], llm: LlmBackend,
     progress: Callable[[float], None] | None = None,
     check_cancel: Callable[[], None] | None = None,
+    max_concurrency: int = 1,
 ) -> tuple[str, dict[str, int]]:
     """Return (summary markdown, counters). Raises LLMError if the LLM keeps failing."""
     budget = summary_input_budget(llm.num_ctx)
     lines = [(u["start"], f"[{hms(u['start'])}] {u['speaker']}: {u['text']}")
              for u in utterances if u["text"].strip()]
     chunks = pack(lines, budget, lambda item: estimate_tokens(item[1]) + 1)
-    total_steps = len(chunks) + 1
 
-    parts: list[str] = []
-    for done, chunk in enumerate(chunks, start=1):
-        if check_cancel:
-            check_cancel()
+    def map_chunk(chunk: list[tuple[float, str]]) -> str:
         start_label = hms(chunk[0][0])
         text = "\n".join(line for _, line in chunk)
         bullets = _chat(llm, SUMMARY_MAP_SYSTEM, summary_map_user_message(start_label, text))
-        parts.append(f"Section starting [{start_label}]:\n{bullets}")
-        if progress:
-            progress(done / total_steps)
+        return f"Section starting [{start_label}]:\n{bullets}"
+
+    parts_by_index: dict[int, str] = {}
+    workers = min(max(1, max_concurrency), len(chunks))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="summary-map") as pool:
+        futures = {pool.submit(map_chunk, chunk): index
+                   for index, chunk in enumerate(chunks)}
+        for done, future in enumerate(as_completed(futures), start=1):
+            if check_cancel:
+                check_cancel()
+            parts_by_index[futures[future]] = future.result()
+            if progress:
+                progress(done / (len(chunks) + 1))
+
+    parts = [parts_by_index[index] for index in range(len(chunks))]
+    if not chunks and progress:
+        progress(1.0)
 
     rounds = 0
     while sum(estimate_tokens(p) for p in parts) > budget and len(parts) > 1 \
@@ -99,8 +111,10 @@ def run(ctx: JobContext) -> None:
         return
 
     try:
-        markdown, stats = summarize_utterances(cleaned["utterances"], llm, ctx.progress,
-                                               ctx.check_cancel)
+        markdown, stats = summarize_utterances(
+            cleaned["utterances"], llm, ctx.progress, ctx.check_cancel,
+            ctx.settings.llm_map_concurrency,
+        )
     except LLMError as exc:
         if not ctx.last_attempt:
             raise

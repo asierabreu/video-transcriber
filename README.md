@@ -290,6 +290,7 @@ describes them. These are the ones you are most likely to change:
 |---|---|---|
 | `API_KEY` | — | Required, 32+ characters |
 | `LLM_MODEL` | tier default (`qwen3:8b`) | Any Ollama tag. Run `docker compose exec ollama ollama pull <tag>` first |
+| `LLM_MAP_CONCURRENCY` | `2` | Concurrent summary map requests (1–4); increase only if Ollama has spare GPU memory |
 | `RETENTION_DAYS` | `2` | Finished jobs and their files are deleted after this many days |
 | `KEEP_MEDIA` | `false` | Keep the uploaded video and WAV after success |
 | `MAX_UPLOAD_MB` / `MAX_DURATION_S` | `8192` / `14400` | Upload limits |
