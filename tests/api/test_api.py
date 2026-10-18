@@ -49,6 +49,12 @@ def test_non_multipart_rejected(client):
     assert_error(client.post("/v1/jobs", content=b"x"), 400, "invalid_options")
 
 
+def test_video_file_required(client):
+    resp = client.post("/v1/jobs", files={"title": (None, "untitled")})
+    assert_error(resp, 400, "invalid_options")
+    assert "file" in resp.json()["error"]["message"]
+
+
 @needs_ffmpeg
 def test_submit_get_list_and_delete(client, settings, media_dir):
     resp = submit(client, make_media(media_dir / "talk.mp4"), num_speakers=2, summary="false")

@@ -154,6 +154,11 @@ roughly known.
 ```bash
 curl -s "$API/v1/jobs/$JOB" -H "X-API-Key: $KEY"
 # "status":"running","stage":"diarizing","progress":0.56, ...
+
+# Watch status, stages, and overall progress until the job finishes.
+./scripts/watch_job.py "$JOB"
+# Adjust the polling interval when needed:
+./scripts/watch_job.py --interval 5 "$JOB"
 ```
 
 **List jobs** (newest first, paginated):
