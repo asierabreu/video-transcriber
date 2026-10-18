@@ -195,24 +195,24 @@ curl -s "$API/readyz"                            # readiness: DB, disk, worker; 
 curl -s "$API/metrics"                           # Prometheus text format
 ```
 
-### Manager script
+### Transcriber script
 
-The executable manager wraps the API workflows above. It uses the `API`, `KEY`, and `JOB`
-environment variables shown earlier; run `./scripts/manager.py --help` for all options.
+The executable transcriber wraps the API workflows above. It uses the `API`, `KEY`, and `JOB`
+environment variables shown earlier; run `./scripts/transcriber.py --help` for all options.
 
 ```bash
-./scripts/manager.py submit meeting.mp4 --num-speakers 3 --title "Weekly sync"
-./scripts/manager.py watch "$JOB" --interval 5
-./scripts/manager.py job "$JOB"
-./scripts/manager.py list --status succeeded --limit 20
-./scripts/manager.py download "$JOB" --format json --output transcript.json
-./scripts/manager.py download "$JOB" --format txt --output transcript.txt
-./scripts/manager.py download "$JOB" --format summary --output summary.md
-./scripts/manager.py delete "$JOB"
-./scripts/manager.py system
-./scripts/manager.py health
-./scripts/manager.py ready
-./scripts/manager.py metrics
+./scripts/transcriber.py submit meeting.mp4 --num-speakers 3 --title "Weekly sync"
+./scripts/transcriber.py watch "$JOB" --interval 5
+./scripts/transcriber.py job "$JOB"
+./scripts/transcriber.py list --status succeeded --limit 20
+./scripts/transcriber.py download "$JOB" --format json --output transcript.json
+./scripts/transcriber.py download "$JOB" --format txt --output transcript.txt
+./scripts/transcriber.py download "$JOB" --format summary --output summary.md
+./scripts/transcriber.py delete "$JOB"
+./scripts/transcriber.py system
+./scripts/transcriber.py health
+./scripts/transcriber.py ready
+./scripts/transcriber.py metrics
 ```
 
 Errors always look like

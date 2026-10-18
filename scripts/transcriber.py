@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Manage video-transcriber jobs and service health from the command line.
+"""Launch video-transcriber jobs and service health commands from the command line.
 
-Usage: API=http://localhost:8000 KEY=... ./scripts/manager.py --help
+Usage: API=http://localhost:8000 KEY=... ./scripts/transcriber.py --help
 """
 
 from __future__ import annotations
