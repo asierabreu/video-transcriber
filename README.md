@@ -152,12 +152,13 @@ roughly known.
 **Check progress:**
 
 ```bash
-curl -s "$API/v1/jobs/$JOB" -H "X-API-Key: $KEY"
-# "status":"running","stage":"diarizing","progress":0.56, ...
+# Directly using API
+curl -s "$API/v1/jobs/$JOB" -H "X-API-Key: $KEY" | python3 -m json.tool
 
-# Watch status, stages, and overall progress until the job finishes.
+# Using watch_job wrapper : watch status, stages, and overall progress until the job finishes.
 ./scripts/watch_job.py "$JOB"
-# Adjust the polling interval when needed:
+
+# Wrapper with adjustable polling interval:
 ./scripts/watch_job.py --interval 5 "$JOB"
 ```
 
@@ -192,6 +193,26 @@ curl -s "$API/v1/system" -H "X-API-Key: $KEY"   # hardware tier, models, worker,
 curl -s "$API/healthz"                           # liveness (no auth)
 curl -s "$API/readyz"                            # readiness: DB, disk, worker; reports Ollama
 curl -s "$API/metrics"                           # Prometheus text format
+```
+
+### Manager script
+
+The executable manager wraps the API workflows above. It uses the `API`, `KEY`, and `JOB`
+environment variables shown earlier; run `./scripts/manager.py --help` for all options.
+
+```bash
+./scripts/manager.py submit meeting.mp4 --num-speakers 3 --title "Weekly sync"
+./scripts/manager.py watch "$JOB" --interval 5
+./scripts/manager.py job "$JOB"
+./scripts/manager.py list --status succeeded --limit 20
+./scripts/manager.py download "$JOB" --format json --output transcript.json
+./scripts/manager.py download "$JOB" --format txt --output transcript.txt
+./scripts/manager.py download "$JOB" --format summary --output summary.md
+./scripts/manager.py delete "$JOB"
+./scripts/manager.py system
+./scripts/manager.py health
+./scripts/manager.py ready
+./scripts/manager.py metrics
 ```
 
 Errors always look like
