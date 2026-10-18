@@ -67,6 +67,33 @@ make models                 # every tier (about 10 GB)
 make models TIER=cuda-medium   # or only what your hardware tier needs
 ```
 
+With the default `TIER=all`, this downloads:
+
+- ASR: `large-v3`, `large-v3-turbo`, and `distil-large-v3` for faster-whisper.
+- Diarization: `pyannote/speaker-diarization-community-1` from Hugging Face.
+- Ollama: `qwen3:8b` and `qwen3:4b`.
+
+With a specific tier, only that tier's ASR and LLM models are downloaded, plus the
+diarization model. For example, `TIER=cuda-medium` downloads `large-v3-turbo` and
+`qwen3:8b`.
+
+`TIER` accepts these values:
+
+| Value | ASR model | Ollama model | Intended hardware |
+|---|---|---|---|
+| `all` | `large-v3`, `large-v3-turbo`, `distil-large-v3` | `qwen3:8b`, `qwen3:4b` | Download every tier |
+| `cuda-large` | `large-v3` | `qwen3:8b` | NVIDIA GPU with ample VRAM |
+| `cuda-medium` | `large-v3-turbo` | `qwen3:8b` | NVIDIA GPU with medium VRAM |
+| `cuda-small` | `distil-large-v3` | `qwen3:4b` | NVIDIA GPU with limited VRAM |
+| `apple` | `distil-large-v3` | `qwen3:8b` | Apple Silicon |
+| `cpu` | `distil-large-v3` | `qwen3:4b` | CPU-only hosts |
+
+Every tier also downloads `pyannote/speaker-diarization-community-1` for speaker
+diarization. The `TIER` value can be supplied as an environment variable or Make
+argument, for example `TIER=cpu make models`. The downloader script has additional
+advanced flags (`--skip-asr`, `--skip-diarization`, `--skip-llm`, `--asr-model`, and
+`--llm-model`), but those are not exposed by the `make models` target.
+
 **3. Start the service.**
 
 ```bash
