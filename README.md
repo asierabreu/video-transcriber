@@ -110,6 +110,17 @@ curl -s localhost:8000/readyz | python3 -m json.tool
 The API listens on port 8000 (set `API_PUBLISH` to change it). Put it behind a TLS reverse proxy
 before exposing it beyond a trusted network (see [Operations](docs/OPERATIONS.md#tls)).
 
+**5. Stop the service.**
+
+```bash
+make stop    # stop CPU or GPU containers and preserve them for the next start
+make down    # stop and remove the Compose containers and network
+```
+
+The worker receives a graceful stop signal and finishes its current stage before exiting. An
+interrupted job resumes from its last completed stage when the service starts again. For native
+development with `make dev`, press `Ctrl-C` to stop the API and worker.
+
 ## Local development (macOS, Apple Silicon)
 
 Docker on macOS cannot use the Apple GPU, so run natively:
@@ -141,13 +152,41 @@ export API=http://localhost:8000 KEY=<your API_KEY>
 
 ```bash
 curl -s -X POST "$API/v1/jobs" -H "X-API-Key: $KEY" \
-  -F file=@meeting.mp4 -F num_speakers=3 -F cleanup=true -F summary=true -F title="Weekly sync"
+  -F file=@meeting.mp4 -F diarization=true -F num_speakers=3 -F cleanup=true -F summary=true -F title="Weekly sync"
 # {"id":"01JAB3K9ZQ4W1X8T6M2N5P7R0S","status":"queued","queue_position":1,...}
 export JOB=01JAB3K9ZQ4W1X8T6M2N5P7R0S
 ```
 
 Use `min_speakers` and `max_speakers` instead of `num_speakers` when the speaker count is only
 roughly known.
+
+The default is the fast transcript-only pipeline. Enable optional processing explicitly:
+
+```bash
+# Fast default: transcript and subtitle files, no speaker diarization or LLM calls.
+./scripts/transcriber.py submit meeting.mp4
+
+# Add speaker labels, without using the LLM.
+./scripts/transcriber.py submit meeting.mp4 --diarization --num-speakers 3
+
+# Correct and normalize transcript text, without speaker diarization or a summary.
+./scripts/transcriber.py submit meeting.mp4 --cleanup
+
+# Generate a summary; this also prepares the transcript for the summarizer.
+./scripts/transcriber.py submit meeting.mp4 --summary
+
+# Enable every optional stage.
+./scripts/transcriber.py submit meeting.mp4 --diarization --cleanup --summary \
+  --num-speakers 3 --title "Weekly sync"
+```
+
+The equivalent full-processing upload with curl is:
+
+```bash
+curl -s -X POST "$API/v1/jobs" -H "X-API-Key: $KEY" \
+  -F file=@meeting.mp4 -F diarization=true -F num_speakers=3 \
+  -F cleanup=true -F summary=true -F title="Weekly sync"
+```
 
 **Check progress:**
 
@@ -197,11 +236,13 @@ curl -s "$API/metrics"                           # Prometheus text format
 
 ### Transcriber script
 
-The executable transcriber wraps the API workflows above. It uses the `API`, `KEY`, and `JOB`
-environment variables shown earlier; run `./scripts/transcriber.py --help` for all options.
+The executable transcriber wraps the API workflows above. Install its Python dependencies once
+with `python3 -m pip install -e .`. It uses the `API`, `KEY`, and `JOB` environment variables
+shown earlier; run `./scripts/transcriber.py --help` for all options.
 
 ```bash
-./scripts/transcriber.py submit meeting.mp4 --num-speakers 3 --title "Weekly sync"
+./scripts/transcriber.py submit meeting.mp4 --diarization --cleanup --summary \
+  --num-speakers 3 --title "Weekly sync"
 ./scripts/transcriber.py watch "$JOB" --interval 5
 ./scripts/transcriber.py job "$JOB"
 ./scripts/transcriber.py list --status succeeded --limit 20
@@ -214,6 +255,25 @@ environment variables shown earlier; run `./scripts/transcriber.py --help` for a
 ./scripts/transcriber.py ready
 ./scripts/transcriber.py metrics
 ```
+
+## Pipeline stages
+
+Jobs run through these stages in order. The API exposes the active stage and overall progress
+while a job is running. The default fast configuration runs only extracting, transcribing, and
+rendering. This avoids the diarization and LLM stages for the shortest processing time.
+
+1. **Extracting**: decodes the uploaded video and creates a 16 kHz mono WAV for analysis.
+2. **Transcribing**: runs Whisper ASR to produce segments, words, timestamps, and raw text.
+3. **Diarizing**: optionally identifies speaker turns and assigns speaker labels to the transcript.
+4. **Aligning**: reconciles ASR words with diarization turns and builds the aligned transcript.
+5. **Cleaning**: optionally uses the configured LLM to correct and normalize transcript text.
+6. **Summarizing**: optionally uses the LLM to generate the structured Markdown summary.
+7. **Rendering**: writes the final JSON, TXT, SRT, and VTT transcript files.
+
+Enable additional work per job with `diarization=true`, `cleanup=true`, and `summary=true`.
+These options can be combined independently. For example, `diarization=true` adds speaker
+labels without enabling either LLM stage; `cleanup=true` or `summary=true` also adds the
+alignment and cleanup prerequisites automatically.
 
 Errors always look like
 `{"error": {"code": "unsupported_media", "message": "...", "details": {...}}}`. The full

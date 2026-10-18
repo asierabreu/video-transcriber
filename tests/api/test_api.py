@@ -66,7 +66,7 @@ def test_submit_get_list_and_delete(client, settings, media_dir):
     job = client.get(f"/v1/jobs/{job_id}").json()
     assert job["title"] == "talk.mp4"
     assert job["options"] == {"num_speakers": 2, "min_speakers": None, "max_speakers": None,
-                              "cleanup": True, "summary": False}
+                              "diarization": False, "cleanup": False, "summary": False}
     assert job["media"]["duration_s"] > 2 and "mp4" in job["media"]["container"]
     assert (settings.jobs_dir / job_id / "source.mp4").exists()
     assert (settings.jobs_dir / job_id / "probe.json").exists()

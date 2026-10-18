@@ -39,8 +39,9 @@ A failed job carries one of these codes in `job.error.code`: `extraction_failed`
 | `file` | binary, required | — |
 | `num_speakers` | int 1–20 | none |
 | `min_speakers`, `max_speakers` | int 1–20 | none |
-| `cleanup` | `true`/`false` | `true` |
-| `summary` | `true`/`false` | `true` |
+| `diarization` | `true`/`false` | `false` |
+| `cleanup` | `true`/`false` | `false` |
+| `summary` | `true`/`false` | `false` |
 | `title` | string ≤ 200 | the uploaded filename |
 
 The upload streams to disk and is checked with ffprobe before the response is sent, so invalid

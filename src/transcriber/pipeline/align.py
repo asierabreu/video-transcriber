@@ -103,6 +103,7 @@ def align(asr: dict[str, Any], turns: list[dict[str, Any]]) -> dict[str, Any]:
 def run(ctx: JobContext) -> None:
     """Write aligned.json."""
     asr = ctx.files.read_json("asr.json")
-    turns = ctx.files.read_json("diarization.json")["turns"]
+    turns = ctx.files.read_json("diarization.json")["turns"] \
+        if ctx.files.exists("diarization.json") else []
     ctx.files.write_json("aligned.json", align(asr, turns))
     ctx.progress(1.0)

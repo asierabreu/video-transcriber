@@ -5,12 +5,12 @@ FILE         ?=
 API_URL      ?= http://localhost:8000
 
 .PHONY: help install dev test test-e2e lint typecheck licenses api-key \
-        build-cpu build-gpu up-cpu up-gpu down logs models models-local \
+	build-cpu build-gpu up-cpu up-gpu stop down logs models models-local \
         export-models import-models fixtures bench
 
 help:
 	@echo "Local:   install dev test test-e2e lint typecheck licenses models-local bench api-key"
-	@echo "Docker:  build-cpu build-gpu up-cpu up-gpu down logs models export-models import-models"
+	@echo "Docker:  build-cpu build-gpu up-cpu up-gpu stop down logs models export-models import-models"
 	@echo "Vars:    TIER=$(TIER) (all|cuda-large|cuda-medium|cuda-small|apple|cpu)  FILE=video for bench"
 
 # ---------- local development (macOS / Linux, native) ----------
@@ -61,6 +61,9 @@ up-cpu:
 
 up-gpu:
 	$(COMPOSE_GPU) --profile gpu up -d --build
+
+stop:
+	$(COMPOSE_GPU) --profile cpu --profile gpu stop
 
 down:
 	$(COMPOSE) --profile cpu --profile gpu --profile tools down

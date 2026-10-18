@@ -51,8 +51,9 @@ UPLOAD_OPENAPI: dict[str, Any] = {
                 "num_speakers": {"type": "integer", "minimum": 1, "maximum": 20},
                 "min_speakers": {"type": "integer", "minimum": 1, "maximum": 20},
                 "max_speakers": {"type": "integer", "minimum": 1, "maximum": 20},
-                "cleanup": {"type": "boolean", "default": True},
-                "summary": {"type": "boolean", "default": True},
+                "diarization": {"type": "boolean", "default": False},
+                "cleanup": {"type": "boolean", "default": False},
+                "summary": {"type": "boolean", "default": False},
                 "title": {"type": "string", "maxLength": 200},
             },
         }}},
@@ -93,8 +94,9 @@ def parse_options(fields: dict[str, str], filename: str | None) -> tuple[str, di
         "num_speakers": _parse_speakers(fields, "num_speakers"),
         "min_speakers": _parse_speakers(fields, "min_speakers"),
         "max_speakers": _parse_speakers(fields, "max_speakers"),
-        "cleanup": _parse_bool(fields, "cleanup", True),
-        "summary": _parse_bool(fields, "summary", True),
+        "diarization": _parse_bool(fields, "diarization", False),
+        "cleanup": _parse_bool(fields, "cleanup", False),
+        "summary": _parse_bool(fields, "summary", False),
     }
     lo, hi = options["min_speakers"], options["max_speakers"]
     if lo is not None and hi is not None and lo > hi:

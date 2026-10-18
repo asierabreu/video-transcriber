@@ -5,10 +5,21 @@ from transcriber.config import Settings
 from transcriber.errors import ModelLoadError, ResourceExhaustedError
 from transcriber.hardware.tiers import HardwareProfile, resolve_effective
 from transcriber.pipeline import diarize, transcribe
-from transcriber.pipeline.stages import JobContext
+from transcriber.pipeline.stages import JobContext, build_stages
 from transcriber.store.files import JobFiles
 
 JOB_ID = "01JAB3K9ZQ4W1X8T6M2N5P7R0S"
+
+
+def test_stage_selection_defaults_to_fast_pipeline():
+    assert [stage.name for stage in build_stages()] == [
+        "extracting", "transcribing", "rendering"
+    ]
+    assert [stage.name for stage in build_stages({"diarization": True,
+                                                   "cleanup": True, "summary": True})] == [
+        "extracting", "transcribing", "diarizing", "aligning", "cleaning",
+        "summarizing", "rendering"
+    ]
 
 
 def context(tmp_path, factory, device="cuda"):

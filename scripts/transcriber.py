@@ -14,8 +14,16 @@ import time
 from pathlib import Path
 from typing import Any
 
-import httpx
-from tqdm import tqdm
+try:
+    import httpx
+    from tqdm import tqdm
+except ModuleNotFoundError as exc:
+    if exc.name in {"httpx", "tqdm"}:
+        raise SystemExit(
+            "Missing CLI dependencies. Install the project first with: "
+            "python3 -m pip install -e ."
+        ) from None
+    raise
 
 STAGES = (
     "extracting",
@@ -66,9 +74,10 @@ def _build_parser() -> argparse.ArgumentParser:
     submit.add_argument("--num-speakers", type=int)
     submit.add_argument("--min-speakers", type=int)
     submit.add_argument("--max-speakers", type=int)
+    submit.add_argument("--diarization", action=argparse.BooleanOptionalAction, default=False)
     submit.add_argument("--title")
-    submit.add_argument("--cleanup", action=argparse.BooleanOptionalAction, default=True)
-    submit.add_argument("--summary", action=argparse.BooleanOptionalAction, default=True)
+    submit.add_argument("--cleanup", action=argparse.BooleanOptionalAction, default=False)
+    submit.add_argument("--summary", action=argparse.BooleanOptionalAction, default=False)
 
     watch = subparsers.add_parser("watch", help="watch a job with a progress bar")
     watch.add_argument("job", nargs="?", default=os.environ.get("JOB"))
@@ -138,6 +147,7 @@ def _submit(client: httpx.Client, args: argparse.Namespace) -> dict[str, Any]:
         "num_speakers": args.num_speakers,
         "min_speakers": args.min_speakers,
         "max_speakers": args.max_speakers,
+        "diarization": str(args.diarization).lower(),
         "cleanup": str(args.cleanup).lower(),
         "summary": str(args.summary).lower(),
         "title": args.title,

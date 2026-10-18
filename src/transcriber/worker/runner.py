@@ -166,12 +166,8 @@ class JobRunner:
 def required_models_missing(settings: Settings, eff: EffectiveConfig) -> list[str]:
     """Describe models the worker needs but cannot find locally."""
     from transcriber.backends.asr_faster_whisper import asr_model_available
-    from transcriber.backends.diarization_pyannote import diarization_model_available
-
     missing = []
     if not asr_model_available(eff.asr_model, settings.models_dir):
         missing.append(f"ASR model {eff.asr_model!r} (expected in "
                        f"{Path(settings.models_dir) / 'whisper' / eff.asr_model})")
-    if not diarization_model_available(settings.diarization_model_path):
-        missing.append(f"diarization pipeline (expected in {settings.diarization_model_path})")
     return missing

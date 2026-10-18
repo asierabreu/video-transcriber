@@ -26,8 +26,9 @@ class JobOptions(BaseModel):
     num_speakers: int | None = None
     min_speakers: int | None = None
     max_speakers: int | None = None
-    cleanup: bool = True
-    summary: bool = True
+    diarization: bool = False
+    cleanup: bool = False
+    summary: bool = False
 
 
 class MediaInfo(BaseModel):

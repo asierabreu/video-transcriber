@@ -21,7 +21,8 @@ def run_next(runner, conn):
 
 @pytest.mark.parametrize("name", ["a.mp4", "a.mkv", "a.mov", "a.avi"])
 def test_full_pipeline_every_container(client, settings, media_dir, name):
-    job_id = submit(client, make_media(media_dir / name)).json()["id"]
+    job_id = submit(client, make_media(media_dir / name), diarization="true", cleanup="true",
+                    summary="true").json()["id"]
     runner, conn = make_runner(settings, FakeFactory())
     assert run_next(runner, conn) == (job_id, "succeeded")
 
@@ -51,6 +52,22 @@ def test_full_pipeline_every_container(client, settings, media_dir, name):
     assert set(meta["result"]["stage_durations"]) >= {"extracting", "rendering"}
 
 
+def test_fast_defaults_skip_diarization_and_llm(client, settings, media_dir):
+    job_id = submit(client, make_media(media_dir / "fast.mp4")).json()["id"]
+    factory = FakeFactory()
+    runner, conn = make_runner(settings, factory)
+    assert run_next(runner, conn) == (job_id, "succeeded")
+    job = client.get(f"/v1/jobs/{job_id}").json()
+    assert job["options"] == {"num_speakers": None, "min_speakers": None,
+                               "max_speakers": None, "diarization": False,
+                               "cleanup": False, "summary": False}
+    assert job["result"]["speakers"] == 1
+    assert job["result"]["cleanup_applied"] is False
+    assert job["result"]["summary_available"] is False
+    assert factory.diar_devices == [] and factory._llm.calls == []
+    assert set(job["result"]["stage_durations"]) == {"extracting", "transcribing", "rendering"}
+
+
 def test_options_disable_llm_steps(client, settings, media_dir):
     job_id = submit(client, make_media(media_dir / "a.mp4"), cleanup="false",
                     summary="false").json()["id"]
@@ -65,7 +82,8 @@ def test_options_disable_llm_steps(client, settings, media_dir):
 
 
 def test_llm_unreachable_retries_then_degrades(client, settings, media_dir):
-    job_id = submit(client, make_media(media_dir / "a.mp4")).json()["id"]
+    job_id = submit(client, make_media(media_dir / "a.mp4"), diarization="true", cleanup="true",
+                    summary="true").json()["id"]
     runner, conn = make_runner(settings, FakeFactory(llm=FakeLlm(reachable=False)))
     assert run_next(runner, conn)[1] == "queued"
     job = repo.get_job(conn, job_id)
@@ -82,7 +100,8 @@ def test_llm_unreachable_retries_then_degrades(client, settings, media_dir):
 
 
 def test_model_not_pulled_degrades_immediately(client, settings, media_dir):
-    job_id = submit(client, make_media(media_dir / "a.mp4")).json()["id"]
+    job_id = submit(client, make_media(media_dir / "a.mp4"), diarization="true", cleanup="true",
+                    summary="true").json()["id"]
     runner, conn = make_runner(settings, FakeFactory(llm=FakeLlm(present=False)))
     assert run_next(runner, conn)[1] == "succeeded"
     job = client.get(f"/v1/jobs/{job_id}").json()
@@ -91,7 +110,7 @@ def test_model_not_pulled_degrades_immediately(client, settings, media_dir):
 
 
 def test_resume_skips_completed_stages(client, settings, media_dir):
-    job_id = submit(client, make_media(media_dir / "a.mp4")).json()["id"]
+    job_id = submit(client, make_media(media_dir / "a.mp4"), diarization="true").json()["id"]
     factory = FakeFactory(diar_errors=[RuntimeError("boom")])  # CPU tier: one device to try
     runner, conn = make_runner(settings, factory)
     assert run_next(runner, conn)[1] == "queued"  # ResourceExhausted is transient

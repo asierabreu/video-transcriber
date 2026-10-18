@@ -89,29 +89,39 @@ class Stage:
     run: StageFn
 
 
-def build_stages() -> list[Stage]:
-    """The ordered stage list with weights from §6.2."""
+def build_stages(options: dict[str, Any] | None = None) -> list[Stage]:
+    """Build the shortest stage list that satisfies the requested job options."""
     from transcriber.pipeline import align, cleanup, diarize, extract, render, summarize, transcribe
 
-    return [
+    options = options or {}
+    selected = [
         Stage("extracting", 0.05, "audio.wav", extract.run),
         Stage("transcribing", 0.45, "asr.json", transcribe.run),
-        Stage("diarizing", 0.20, "diarization.json", diarize.run),
-        Stage("aligning", 0.02, "aligned.json", align.run),
-        Stage("cleaning", 0.18, "cleaned.json", cleanup.run),
-        Stage("summarizing", 0.08, "summary.json", summarize.run),
-        Stage("rendering", 0.02, "out/transcript.json", render.run),
     ]
+    if options.get("diarization"):
+        selected.append(Stage("diarizing", 0.20, "diarization.json", diarize.run))
+    if options.get("diarization") or options.get("cleanup") or options.get("summary"):
+        selected.append(Stage("aligning", 0.02, "aligned.json", align.run))
+    if options.get("cleanup") or options.get("summary"):
+        selected.append(Stage("cleaning", 0.18, "cleaned.json", cleanup.run))
+    if options.get("summary"):
+        selected.append(Stage("summarizing", 0.08, "summary.json", summarize.run))
+    selected.append(
+        Stage("rendering", 0.02, "out/transcript.json", render.run),
+    )
+    return selected
 
 
 def run_pipeline(ctx: JobContext, stages: list[Stage] | None = None) -> None:
     """Run every stage in order, skipping stages whose artifact already exists (resume)."""
-    stages = stages or build_stages()
+    stages = stages or build_stages(ctx.options)
     durations: dict[str, float] = ctx.meta.setdefault("stage_durations", {})
+    total_weight = sum(stage.weight for stage in stages)
     base = 0.0
     for stage in stages:
         ctx.check_cancel()
-        ctx._stage, ctx._stage_base, ctx._stage_weight = stage.name, base, stage.weight
+        weight = stage.weight / total_weight
+        ctx._stage, ctx._stage_base, ctx._stage_weight = stage.name, base, weight
         token = stage_var.set(stage.name)
         try:
             if ctx.files.exists(stage.artifact):
@@ -123,7 +133,7 @@ def run_pipeline(ctx: JobContext, stages: list[Stage] | None = None) -> None:
                 stage.run(ctx)
                 durations[stage.name] = round(time.monotonic() - started, 2)
                 log.info("stage finished", extra={"duration_s": durations[stage.name]})
-            base += stage.weight
+            base += weight
             ctx.on_progress(stage.name, base)
         finally:
             stage_var.reset(token)
